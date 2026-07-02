@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Quest Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero-card">
+      <div>
+        <p class="eyebrow">Study Quest</p>
+        <h1>Daily Study Tracker</h1>
+        <p class="hero-copy">Track English, Reasoning, Math, GK and Mock Test progress with XP, glowing cards, badges, and Google Sheets saves.</p>
+      </div>
+      <div class="player-panel">
+        <label for="student-input">Student name</label>
+        <div class="player-entry">
+          <input id="student-input" type="text" placeholder="Enter name here" />
+          <button id="save-player" type="button">Ready</button>
+        </div>
+        <p class="hint">Every checkbox saves your progress to Google Sheets, no heavy database needed.</p>
+      </div>
+    </header>
+    <div id="date-banner" class="date-banner">Today: --</div>
+
+    <section class="status-row">
+      <div class="status-card xp-card">
+        <span class="status-label">XP earned</span>
+        <strong id="xp-count">0</strong>
+      </div>
+      <div class="status-card progress-card">
+        <div class="status-label">Daily completion</div>
+        <div class="progress-bar">
+          <div id="overall-bar" class="progress-fill"></div>
+        </div>
+        <span id="overall-label" class="progress-text">0% complete</span>
+      </div>
+    </section>
+
+    <section id="badge-row" class="badge-row"></section>
+    <main id="app" class="grid"></main>
+    <div id="xp-popup" class="xp-popup">+20 XP</div>
+    <div id="badge-burst" class="badge-burst">Badge Unlocked!</div>
+  </div>
+
+  <script src="env.js"></script>
+  <script src="config.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
