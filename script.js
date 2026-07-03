@@ -309,6 +309,28 @@ function createSubjectCard(subject, tasks, frequency) {
     selectionRow.appendChild(completeButton);
     card.appendChild(selectionRow);
 
+    const taskList = document.createElement("div");
+    taskList.className = "english-task-list";
+    getCategoryTasks(subject, category).forEach((task) => {
+      const taskKey = buildTaskKey(category, task);
+      const isDone = !!(subjectStatus[taskKey]);
+      const taskItem = document.createElement("div");
+      taskItem.className = "english-task-item";
+
+      const taskName = document.createElement("span");
+      taskName.className = "task-name";
+      taskName.textContent = task;
+
+      const statusPill = document.createElement("span");
+      statusPill.className = `status-pill ${isDone ? "done" : "pending"}`;
+      statusPill.textContent = isDone ? "Done" : "Pending";
+
+      taskItem.appendChild(taskName);
+      taskItem.appendChild(statusPill);
+      taskList.appendChild(taskItem);
+    });
+    card.appendChild(taskList);
+
     const completedBlock = document.createElement("div");
     completedBlock.className = "completed-block";
     const completedTasks = getCategoryTasks(subject, category).filter((task) => subjectStatus[buildTaskKey(category, task)]);
