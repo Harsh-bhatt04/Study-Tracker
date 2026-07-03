@@ -417,6 +417,47 @@ body {
   transition: transform 0.2s ease, background 0.25s ease;
 }
 
+.task-select,
+.task-input {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 0 16px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.task-select:focus,
+.task-input:focus {
+  border-color: rgba(124, 92, 255, 0.6);
+  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.12);
+}
+
+.dropdown-row,
+.edit-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 14px;
+}
+
+.completed-block {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .task-toggle:hover {
   transform: translateY(-1px);
 }

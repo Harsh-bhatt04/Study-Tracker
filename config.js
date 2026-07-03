@@ -7,7 +7,16 @@ const SCRIPT_URL = (typeof window !== 'undefined' && window.SCRIPT_URL)
 const API_KEY = (typeof window !== 'undefined' && window.API_KEY) ? window.API_KEY : '';
 
 const subjects = {
-  English: { tasks: ["Video", "Questions", "Revision", "Mock"], frequency: "daily" },
+  English: {
+    categories: {
+      Reading: ["Revision", "Mock"],
+      Grammar: ["Revision", "Mock"],
+      Vocabulary: ["Revision", "Mock"]
+    },
+    frequency: "daily",
+    editable: true,
+    dropdown: true
+  },
   Reasoning: { tasks: ["Video", "Questions", "Revision", "Mock"], frequency: "daily" },
   Math: { tasks: ["Video", "Questions", "Revision", "Mock"], frequency: "daily" },
   GK: { tasks: ["Video", "Questions", "Revision"], frequency: "daily" },
@@ -15,6 +24,9 @@ const subjects = {
 };
 
 const TASK_HINTS = {
+  Reading: "Read your passage",
+  Grammar: "Practice grammar rules",
+  Vocabulary: "Learn new words",
   Video: "Watch lesson",
   Questions: "Solve practice",
   Revision: "Review notes",

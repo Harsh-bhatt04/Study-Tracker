@@ -61,6 +61,109 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(trackerState));
 }
 
+function getAllSubjectTasks(subject) {
+  const subjectConfig = SUBJECTS[subject];
+  if (!subjectConfig) return [];
+  if (subjectConfig.categories) {
+    return Object.keys(subjectConfig.categories).flatMap((category) => getCategoryTasks(subject, category));
+  }
+  return getSubjectTasks(subject);
+}
+
+function getSubjectTasks(subject) {
+  const subjectConfig = SUBJECTS[subject];
+  if (!subjectConfig) return [];
+  if (subjectConfig.categories) {
+    const category = getSelectedCategory(subject);
+    return getCategoryTasks(subject, category);
+  }
+  const baseTasks = subjectConfig.tasks ? [...subjectConfig.tasks] : [];
+  trackerState.customTasks = trackerState.customTasks || {};
+  const custom = trackerState.customTasks[subject] || [];
+  custom.forEach((task) => {
+    if (task && !baseTasks.includes(task)) {
+      baseTasks.push(task);
+    }
+  });
+  return baseTasks;
+}
+
+function getCategoryTasks(subject, category) {
+  const subjectConfig = SUBJECTS[subject];
+  if (!subjectConfig || !subjectConfig.categories || !category) return [];
+  const baseTasks = [...(subjectConfig.categories[category] || [])];
+  trackerState.customTasks = trackerState.customTasks || {};
+  trackerState.customTasks[subject] = trackerState.customTasks[subject] || {};
+  const custom = trackerState.customTasks[subject][category] || [];
+  custom.forEach((task) => {
+    if (task && !baseTasks.includes(task)) {
+      baseTasks.push(task);
+    }
+  });
+  return baseTasks;
+}
+
+function getCategoryList(subject) {
+  const subjectConfig = SUBJECTS[subject];
+  return subjectConfig && subjectConfig.categories ? Object.keys(subjectConfig.categories) : [];
+}
+
+function getSelectedCategory(subject) {
+  trackerState.selectedCategory = trackerState.selectedCategory || {};
+  const categories = getCategoryList(subject);
+  let selected = trackerState.selectedCategory[subject];
+  if (!selected || categories.indexOf(selected) === -1) {
+    selected = categories[0] || null;
+    trackerState.selectedCategory[subject] = selected;
+    saveState();
+  }
+  return selected;
+}
+
+function setSelectedCategory(subject, category) {
+  trackerState.selectedCategory = trackerState.selectedCategory || {};
+  trackerState.selectedCategory[subject] = category;
+  saveState();
+}
+
+function buildTaskKey(category, task) {
+  return `${category}: ${task}`;
+}
+
+function getTaskLabel(taskKey) {
+  return taskKey;
+}
+
+function isCategoryComplete(subject, category) {
+  const categoryTasks = getCategoryTasks(subject, category);
+  if (categoryTasks.length === 0) return false;
+  const subjectStatus = (trackerState.status && trackerState.status[subject]) || {};
+  return categoryTasks.every((task) => subjectStatus[buildTaskKey(category, task)]);
+}
+
+function getIncompleteTasks(subject) {
+  if (SUBJECTS[subject] && SUBJECTS[subject].categories) {
+    const category = getSelectedCategory(subject);
+    return getCategoryTasks(subject, category).filter((task) => {
+      const key = buildTaskKey(category, task);
+      return !(trackerState.status && trackerState.status[subject] && trackerState.status[subject][key]);
+    });
+  }
+  const subjectStatus = (trackerState.status && trackerState.status[subject]) || {};
+  return getSubjectTasks(subject).filter((task) => !subjectStatus[task]);
+}
+
+function addCustomSubcategory(subject, category, newTask) {
+  if (!newTask || !subject || !category || !SUBJECTS[subject] || !SUBJECTS[subject].editable) return;
+  trackerState.customTasks = trackerState.customTasks || {};
+  trackerState.customTasks[subject] = trackerState.customTasks[subject] || {};
+  trackerState.customTasks[subject][category] = trackerState.customTasks[subject][category] || [];
+  if (!trackerState.customTasks[subject][category].includes(newTask) && !getCategoryTasks(subject, category).includes(newTask)) {
+    trackerState.customTasks[subject][category].push(newTask);
+    saveState();
+  }
+}
+
 function getEffectiveDayKey() {
   const now = new Date();
   const cutoff = new Date(now);
@@ -105,7 +208,7 @@ function renderApp() {
   }
 
   Object.entries(SUBJECTS).forEach(([subject, info]) => {
-    const tasks = info.tasks || [];
+    const tasks = getSubjectTasks(subject);
     const frequency = info.frequency || "daily";
     app.appendChild(createSubjectCard(subject, tasks, frequency));
   });
@@ -134,48 +237,157 @@ function createSubjectCard(subject, tasks, frequency) {
     <div class="card-fade"><span class="subject-progress-label"></span></div>
   `;
 
-  tasks.forEach((task) => {
-    const row = document.createElement("label");
-    row.className = "task-row";
+  if (SUBJECTS[subject] && SUBJECTS[subject].dropdown) {
+    const category = getSelectedCategory(subject);
+    const categories = getCategoryList(subject);
 
-    const meta = document.createElement("div");
-    meta.className = "task-meta";
+    const selectionRow = document.createElement("div");
+    selectionRow.className = "task-row dropdown-row";
 
-    const name = document.createElement("span");
-    name.className = "task-name";
-    name.textContent = task;
+    const categorySelect = document.createElement("select");
+    categorySelect.className = "task-select";
+    categorySelect.disabled = !studentName;
 
-    const note = document.createElement("span");
-    note.className = "task-note";
-    note.textContent = HINTS[task] || "Complete this step";
-
-    meta.appendChild(name);
-    meta.appendChild(note);
-
-    const button = document.createElement("button");
-    button.className = "task-toggle";
-    button.type = "button";
-    button.innerHTML = `<span class="checkmark"></span> ${subjectStatus[task] ? "Done" : "Mark"}`;
-    button.dataset.subject = subject;
-    button.dataset.task = task;
-    if (!studentName) {
-      button.classList.add("disabled");
-      button.disabled = true;
-    }
-    if (subjectStatus[task]) {
-      button.classList.add("checked");
-    }
-
-    button.addEventListener("click", () => {
-      if (!studentName) return;
-      const isChecked = !button.classList.contains("checked");
-      toggleTask(subject, task, button, isChecked);
+    categorySelect.addEventListener("change", () => {
+      setSelectedCategory(subject, categorySelect.value);
+      renderApp();
     });
 
-    row.appendChild(meta);
-    row.appendChild(button);
-    card.appendChild(row);
-  });
+    categories.forEach((cat) => {
+      const option = document.createElement("option");
+      option.value = cat;
+      option.textContent = cat;
+      if (cat === category) option.selected = true;
+      categorySelect.appendChild(option);
+    });
+
+    const taskSelect = document.createElement("select");
+    taskSelect.className = "task-select";
+    taskSelect.disabled = !studentName;
+    taskSelect.style.minWidth = "240px";
+
+    const taskPlaceholder = document.createElement("option");
+    taskPlaceholder.value = "";
+    taskPlaceholder.textContent = "Select a task";
+    taskSelect.appendChild(taskPlaceholder);
+
+    const incompleteTasks = getIncompleteTasks(subject);
+    if (incompleteTasks.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "All tasks completed";
+      taskSelect.appendChild(option);
+      taskSelect.disabled = true;
+    } else {
+      incompleteTasks.forEach((task) => {
+        const option = document.createElement("option");
+        option.value = task;
+        option.textContent = task;
+        taskSelect.appendChild(option);
+      });
+    }
+
+    const completeButton = document.createElement("button");
+    completeButton.className = "task-toggle";
+    completeButton.type = "button";
+    completeButton.textContent = "Complete";
+    completeButton.disabled = !studentName || incompleteTasks.length === 0;
+    if (!studentName) {
+      completeButton.classList.add("disabled");
+    }
+
+    completeButton.addEventListener("click", () => {
+      const selectedTask = taskSelect.value;
+      if (!selectedTask) return;
+      const taskKey = buildTaskKey(category, selectedTask);
+      toggleTask(subject, taskKey, null, true);
+      renderApp();
+    });
+
+    selectionRow.appendChild(categorySelect);
+    selectionRow.appendChild(taskSelect);
+    selectionRow.appendChild(completeButton);
+    card.appendChild(selectionRow);
+
+    const completedBlock = document.createElement("div");
+    completedBlock.className = "completed-block";
+    const completedTasks = getCategoryTasks(subject, category).filter((task) => subjectStatus[buildTaskKey(category, task)]);
+    if (completedTasks.length) {
+      completedBlock.innerHTML = `<strong>Completed:</strong> ${completedTasks.join(", ")}`;
+    } else {
+      completedBlock.innerHTML = `<strong>Completed:</strong> none yet`;
+    }
+    card.appendChild(completedBlock);
+
+    if (SUBJECTS[subject].editable) {
+      const editRow = document.createElement("div");
+      editRow.className = "task-row edit-row";
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = `Add new task for ${category}`;
+      input.className = "task-input";
+
+      const addButton = document.createElement("button");
+      addButton.className = "task-toggle";
+      addButton.type = "button";
+      addButton.textContent = "Add";
+      addButton.addEventListener("click", () => {
+        const newTask = input.value.trim();
+        if (!newTask) return;
+        addCustomSubcategory(subject, category, newTask);
+        input.value = "";
+        renderApp();
+      });
+
+      editRow.appendChild(input);
+      editRow.appendChild(addButton);
+      card.appendChild(editRow);
+    }
+  } else {
+    tasks.forEach((task) => {
+      const row = document.createElement("label");
+      row.className = "task-row";
+
+      const meta = document.createElement("div");
+      meta.className = "task-meta";
+
+      const name = document.createElement("span");
+      name.className = "task-name";
+      name.textContent = task;
+
+      const note = document.createElement("span");
+      note.className = "task-note";
+      note.textContent = HINTS[task] || "Complete this step";
+
+      meta.appendChild(name);
+      meta.appendChild(note);
+
+      const button = document.createElement("button");
+      button.className = "task-toggle";
+      button.type = "button";
+      button.innerHTML = `<span class="checkmark"></span> ${subjectStatus[task] ? "Done" : "Mark"}`;
+      button.dataset.subject = subject;
+      button.dataset.task = task;
+      if (!studentName) {
+        button.classList.add("disabled");
+        button.disabled = true;
+      }
+      if (subjectStatus[task]) {
+        button.classList.add("checked");
+      }
+
+      button.addEventListener("click", () => {
+        if (!studentName) return;
+        const isChecked = !button.classList.contains("checked");
+        toggleTask(subject, task, button, isChecked);
+      });
+
+      row.appendChild(meta);
+      row.appendChild(button);
+      card.appendChild(row);
+    });
+  }
 
   card.appendChild(progressWrapper);
   updateCardProgress(card, subject, tasks.length);
@@ -188,13 +400,17 @@ function toggleTask(subject, task, button, completed) {
   trackerState.status[subject] = trackerState.status[subject] || {};
   trackerState.status[subject][task] = completed;
 
-  if (completed) {
-    button.classList.add("checked");
-    button.innerHTML = `<span class="checkmark"></span> Done`;
+  if (button) {
+    if (completed) {
+      button.classList.add("checked");
+      button.innerHTML = `<span class="checkmark"></span> Done`;
+      showXpPopup();
+    } else {
+      button.classList.remove("checked");
+      button.innerHTML = `<span class="checkmark"></span> Mark`;
+    }
+  } else if (completed) {
     showXpPopup();
-  } else {
-    button.classList.remove("checked");
-    button.innerHTML = `<span class="checkmark"></span> Mark`;
   }
 
   saveState();
@@ -205,7 +421,7 @@ function toggleTask(subject, task, button, completed) {
 function refreshProgress() {
   document.querySelectorAll(".card").forEach((card) => {
     const subject = card.querySelector("h2").textContent;
-    const tasks = (SUBJECTS[subject] && SUBJECTS[subject].tasks) || [];
+    const tasks = getSubjectTasks(subject);
     updateCardProgress(card, subject, tasks.length);
   });
   updateOverallProgress();
@@ -214,7 +430,14 @@ function refreshProgress() {
 
 function updateCardProgress(card, subject, totalTasks) {
   const subjectStatus = (trackerState.status && trackerState.status[subject]) || {};
-  const completedCount = Object.values(subjectStatus).filter(Boolean).length;
+  let completedCount = 0;
+  if (SUBJECTS[subject] && SUBJECTS[subject].categories) {
+    const category = getSelectedCategory(subject);
+    completedCount = getCategoryTasks(subject, category).filter((task) => subjectStatus[buildTaskKey(category, task)]).length;
+  } else {
+    completedCount = Object.values(subjectStatus).filter(Boolean).length;
+  }
+
   const fill = card.querySelector(".fill");
   const label = card.querySelector(".subject-progress-label");
   const progress = totalTasks === 0 ? 0 : Math.round((completedCount / totalTasks) * 100);
@@ -224,7 +447,7 @@ function updateCardProgress(card, subject, totalTasks) {
 }
 
 function updateOverallProgress() {
-  const allTasks = Object.entries(SUBJECTS).flatMap(([subject, info]) => (info.tasks || []).map((task) => ({ subject, task })));
+  const allTasks = Object.entries(SUBJECTS).flatMap(([subject]) => getAllSubjectTasks(subject).map((task) => ({ subject, task })));
   const doneTasks = allTasks.filter(({ subject, task }) => trackerState.status && trackerState.status[subject] && trackerState.status[subject][task]);
   const progress = allTasks.length === 0 ? 0 : Math.round((doneTasks.length / allTasks.length) * 100);
 
